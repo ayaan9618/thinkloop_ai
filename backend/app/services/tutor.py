@@ -81,41 +81,33 @@ class TutorService:
     def _generate_response(self, question: str) -> str:
         """Generate the main tutor response using Gemini or a safe fallback."""
         prompt = (
-            "You are a Socratic tutor. Respond with 2-4 short sentences. "
-            "Do not give the full answer immediately. Ask guiding questions, "
-            "point at useful concepts, and keep the tone encouraging.\n\n"
+            "You are a warm AI tutor. Respond in 2-4 short sentences. "
+            "Be natural, helpful, and conversational. Give a useful explanation first. "
+            "Only ask a follow-up question if it adds value. Avoid sounding robotic or repetitive.\n\n"
             f"Student question: {question}"
         )
         gemini_text = self._call_gemini(prompt)
         if gemini_text:
             return gemini_text
 
-        topic = self._extract_topic(question)
         lowered = question.lower()
 
-        if any(keyword in lowered for keyword in ["explain", "teach me", "help me learn", "what is"]):
-            return (
-                f"Sure — let’s unpack {topic} from the basics. "
-                f"I’ll keep it simple first, then we can go deeper. "
-                f"What part of {topic} feels most confusing right now?"
-            )
+        if "docker" in lowered:
+            return "Docker packages an app and everything it needs so it runs the same way on any machine. Think of it like a lightweight container for software."
 
-        if "how" in lowered:
-            return (
-                f"Let’s break {topic} into smaller steps. "
-                "What outcome are you trying to reach, and what do you already know about the parts involved?"
-            )
+        if "git" in lowered or "branch" in lowered or "merge" in lowered:
+            return "Git helps you track changes in code. Branches let you try work safely, and merges bring those changes back together."
 
-        if "why" in lowered:
-            return (
-                f"Good question about {topic}. "
-                "What underlying rule or principle do you think might be causing that result?"
-            )
+        if "api" in lowered:
+            return "An API is how two programs talk to each other. The frontend sends a request, and the backend returns data in response."
 
-        return (
-            f"I’m here with you on {topic}. "
-            "Can you share a little more context so I can guide you step by step?"
-        )
+        if "recursion" in lowered:
+            return "Recursion is when a function solves a problem by calling itself on a smaller version of the same problem. It works well when the problem naturally breaks into repeated steps."
+
+        if any(keyword in lowered for keyword in ["explain", "teach me", "help me learn", "what is", "how"]):
+            return "Let’s start from the basic idea and build up from there. I can keep it simple, then give an example if you want one."
+
+        return "I can help with that. Give me the topic or a quick example, and I’ll explain it in a simple way."
 
     def _generate_hint(self, question: str, hint_level: int) -> str:
         """Generate a progressively stronger hint."""
@@ -183,23 +175,3 @@ class TutorService:
             return text or None
         except Exception:
             return None
-
-    def _extract_topic(self, question: str) -> str:
-        """Best-effort topic extraction for local fallback responses."""
-        lowered = question.lower().strip().rstrip("?")
-        prefixes = [
-            "explain ",
-            "teach me ",
-            "help me learn ",
-            "what is ",
-            "what are ",
-            "how do i ",
-            "how do you ",
-            "how to ",
-        ]
-
-        for prefix in prefixes:
-            if lowered.startswith(prefix):
-                return question[len(prefix):].strip(" .!?") or "this topic"
-
-        return question.strip(" .!?") or "this topic"

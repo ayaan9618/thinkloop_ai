@@ -294,22 +294,19 @@ function addMessage(role, text, options = {}) {
 
     if (isUser) {
         wrapper.innerHTML = `
-            <div class="max-w-[22rem] rounded-3xl px-4 py-3 ${bubbleClasses}">
-                <div class="message-content whitespace-pre-wrap text-[15px] leading-6 text-white">
+            <div class="ml-auto inline-block w-fit max-w-[16rem] rounded-2xl px-2.5 py-1 ${bubbleClasses}">
+                <div class="message-content whitespace-pre-wrap text-[15px] leading-4 text-white">
                     ${formatMessage(text)}
                 </div>
             </div>
         `;
     } else {
-        const avatar = `<div class="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${isSystem ? "bg-amber-500/15 text-amber-200" : "bg-slate-700 text-slate-100"} text-[11px] font-semibold">${isSystem ? "!" : "AI"}</div>`;
+        const avatar = `<div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${isSystem ? "bg-amber-500/15 text-amber-200" : "bg-slate-700 text-slate-100"} text-[10px] font-semibold">${isSystem ? "!" : "AI"}</div>`;
         wrapper.innerHTML = `
-            <div class="flex w-full max-w-[46rem] items-start gap-3">
+            <div class="flex w-full max-w-[46rem] items-start gap-2">
                 ${avatar}
-                <div class="min-w-0 flex-1 pt-1">
-                    <div class="mb-1 text-[11px] uppercase tracking-[0.22em] text-slate-500">
-                        ${options.badge || (isSystem ? "Notice" : "Socratic")}
-                    </div>
-                    <div class="message-content whitespace-pre-wrap text-[15px] leading-7 ${isSystem ? "text-amber-100" : "text-slate-100"}">
+                <div class="min-w-0 flex-1 pt-0.25">
+                    <div class="message-content whitespace-pre-wrap text-[15px] leading-5 ${isSystem ? "text-amber-100" : "text-slate-100"}">
                         ${formatMessage(text)}
                     </div>
                 </div>
