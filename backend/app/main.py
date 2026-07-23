@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 
 from backend.app.config import settings
 from backend.app.database import init_db
-from backend.app.api import health
+from backend.app.api import health, auth, tutor
 
 
 @asynccontextmanager
@@ -66,6 +66,8 @@ def create_app() -> FastAPI:
 
     # API Routes
     app.include_router(health.router)
+    app.include_router(auth.router, prefix="/api/v1")
+    app.include_router(tutor.router, prefix="/api/v1")
 
     # Root endpoint
     @app.get("/")
