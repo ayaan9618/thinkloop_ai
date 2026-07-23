@@ -1,0 +1,93 @@
+version: "3.9"
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: thinkloop-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: thinkloop_ai
+      MYSQL_USER: thinkloop
+      MYSQL_PASSWORD: thinkloop_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker-init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - thinkloop-network
+
+  # Redis Cache (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: thinkloop-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - thinkloop-network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: thinkloop-backend
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      DATABASE_URL: mysql+pymysql://thinkloop:thinkloop_password@mysql:3306/thinkloop_ai
+      HOST: 0.0.0.0
+      PORT: 8000
+      CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8000", "http://localhost"]'
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - thinkloop-network
+
+  # Frontend (optional - if using separate service)
+  frontend:
+    image: node:18-alpine
+    container_name: thinkloop-frontend
+    working_dir: /app
+    environment:
+      API_URL: http://localhost:8000/api/v1
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    command: npm run dev
+    depends_on:
+      - backend
+    networks:
+      - thinkloop-network
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  thinkloop-network:
+    driver: bridge

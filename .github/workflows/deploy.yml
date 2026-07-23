@@ -1,0 +1,232 @@
+# Deployment Pipeline
+# Deploys to AWS Elastic Beanstalk on push to main branch
+# Only runs after CI pipeline passes
+
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  # Job 1: Build and push Docker image
+  build-image:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ${{ steps.login-ecr.outputs.registry }}/thinkloop-ai
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Job 2: Deploy to Elastic Beanstalk (Staging)
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 30
+
+    environment:
+      name: staging
+      url: https://staging-api.thinkloop.ai
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Create Elastic Beanstalk deployment
+        id: deploy
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name thinkloop-ai \
+            --version-label ${{ github.sha }} \
+            --source-bundle S3Bucket=${{ secrets.EB_BUCKET }},S3Key=deployments/${{ github.sha }}.zip \
+            --region ${{ secrets.AWS_REGION }}
+          
+          aws elasticbeanstalk update-environment \
+            --application-name thinkloop-ai \
+            --environment-name thinkloop-ai-staging \
+            --version-label ${{ github.sha }} \
+            --region ${{ secrets.AWS_REGION }}
+
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for deployment to complete..."
+          aws elasticbeanstalk wait environment-updated \
+            --application-name thinkloop-ai \
+            --environment-name thinkloop-ai-staging \
+            --region ${{ secrets.AWS_REGION }}
+          echo "✓ Deployment complete"
+
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests..."
+          curl -f https://staging-api.thinkloop.ai/health || exit 1
+          echo "✓ Smoke tests passed"
+
+      - name: Notify Slack
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: "Staging deployment ${{ job.status }}"
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Job 3: Deploy to Elastic Beanstalk (Production)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-image
+    if: github.event_name == 'workflow_dispatch'
+    timeout-minutes: 30
+
+    environment:
+      name: production
+      url: https://api.thinkloop.ai
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Create Elastic Beanstalk deployment
+        id: deploy
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name thinkloop-ai \
+            --version-label ${{ github.sha }} \
+            --source-bundle S3Bucket=${{ secrets.EB_BUCKET }},S3Key=deployments/${{ github.sha }}.zip \
+            --region ${{ secrets.AWS_REGION }}
+          
+          aws elasticbeanstalk update-environment \
+            --application-name thinkloop-ai \
+            --environment-name thinkloop-ai-production \
+            --version-label ${{ github.sha }} \
+            --region ${{ secrets.AWS_REGION }}
+
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for deployment to complete..."
+          aws elasticbeanstalk wait environment-updated \
+            --application-name thinkloop-ai \
+            --environment-name thinkloop-ai-production \
+            --region ${{ secrets.AWS_REGION }}
+          echo "✓ Deployment complete"
+
+      - name: Run production smoke tests
+        run: |
+          echo "Running production smoke tests..."
+          curl -f https://api.thinkloop.ai/health || exit 1
+          echo "✓ Smoke tests passed"
+
+      - name: Notify Slack
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: "Production deployment ${{ job.status }}"
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  # Job 4: Rollback (if needed)
+  rollback:
+    name: Rollback (if needed)
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: failure()
+    timeout-minutes: 15
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Rollback to previous version
+        run: |
+          echo "Rolling back to previous version..."
+          
+          # Get previous version
+          PREV_VERSION=$(aws elasticbeanstalk describe-environment-managed-action-history \
+            --application-name thinkloop-ai \
+            --region ${{ secrets.AWS_REGION }} \
+            --query 'ManagedActionHistoryItems[0].ExecutionStatus' \
+            --output text)
+          
+          echo "Previous version: $PREV_VERSION"
+          
+          # Rollback
+          aws elasticbeanstalk abort-environment-update \
+            --environment-name thinkloop-ai-production \
+            --region ${{ secrets.AWS_REGION }}
+
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: "failure"
+          text: "⚠️ Production deployment rolled back"
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
