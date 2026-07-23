@@ -18,7 +18,7 @@ def create_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     encoded_jwt = jwt.encode(
         to_encode,
         settings.SECRET_KEY,
-        algorithm="HS256"
+        algorithm=settings.jwt_algorithm,
     )
     return encoded_jwt
 
@@ -30,7 +30,7 @@ def decode_token(token: str) -> dict:
         payload = jwt.decode(
             token,
             settings.SECRET_KEY,
-            algorithms=["HS256"]
+            algorithms=[settings.jwt_algorithm],
         )
         return payload
     except jwt.ExpiredSignatureError:

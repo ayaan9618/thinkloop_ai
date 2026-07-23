@@ -2,14 +2,21 @@
 Main FastAPI application factory
 """
 
+from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from contextlib import asynccontextmanager
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.app.config import settings
 from backend.app.database import init_db
 from backend.app.api import health, auth, tutor
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+FRONTEND_DIR = BASE_DIR / "frontend"
 
 
 @asynccontextmanager
@@ -50,6 +57,7 @@ def create_app() -> FastAPI:
         allowed_hosts=[
             "localhost",
             "127.0.0.1",
+            "testserver",
             "*.thinkloop.ai",
             "thinkloop.ai",
         ],
@@ -69,15 +77,14 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix="/api/v1")
     app.include_router(tutor.router, prefix="/api/v1")
 
+    if (FRONTEND_DIR / "js").exists():
+        app.mount("/js", StaticFiles(directory=FRONTEND_DIR / "js"), name="js")
+
     # Root endpoint
     @app.get("/")
-    async def root():
-        """Root endpoint."""
-        return {
-            "message": "Welcome to thinkloop AI",
-            "docs": "/docs",
-            "health": "/health",
-        }
+    async def root() -> FileResponse:
+        """Serve the local frontend."""
+        return FileResponse(FRONTEND_DIR / "index.html")
 
     return app
 

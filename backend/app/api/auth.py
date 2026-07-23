@@ -22,10 +22,13 @@ async def register(request: UserCreate, db: Session = Depends(get_db)):
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
+            avatar_url=user.avatar_url,
+            bio=user.bio,
             role=user.role.value,
             is_verified=user.is_verified,
             is_active=user.is_active,
             created_at=user.created_at,
+            updated_at=user.updated_at,
             last_login=user.last_login
         )
     except ValueError as e:
@@ -52,9 +55,12 @@ async def get_me(current_user: User = Depends(get_current_user)):
         username=current_user.username,
         first_name=current_user.first_name,
         last_name=current_user.last_name,
+        avatar_url=current_user.avatar_url,
+        bio=current_user.bio,
         role=current_user.role.value,
         is_verified=current_user.is_verified,
         is_active=current_user.is_active,
         created_at=current_user.created_at,
+        updated_at=current_user.updated_at,
         last_login=current_user.last_login
     )

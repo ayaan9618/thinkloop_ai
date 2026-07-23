@@ -1,57 +1,167 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
 from uuid import uuid4
+
+import requests
 from sqlalchemy.orm import Session
-from backend.app.models.user import User
+
 from backend.app.config import get_settings
+
+
+conversation_store: dict[str, dict[str, Any]] = {}
 
 
 class TutorService:
     def __init__(self, db: Session):
         self.db = db
         self.settings = get_settings()
-    
+
     def ask_question(self, user_id: str, question: str) -> dict:
-        """Process student question with Socratic method."""
+        """Process a student question with a Socratic response."""
         conversation_id = str(uuid4())
-        
-        # Generate Socratic response
         response = self._generate_response(question)
-        
+
+        conversation_store[conversation_id] = {
+            "user_id": user_id,
+            "question": question,
+            "response": response,
+            "hint_level": 0,
+            "created_at": datetime.utcnow(),
+        }
+
         return {
             "conversation_id": conversation_id,
             "response": response,
             "hint_level": 0,
-            "can_request_hint": True
+            "can_request_hint": True,
         }
-    
+
     def get_hint(self, user_id: str, conversation_id: str, hint_level: int = 0) -> dict:
-        """Generate hint for student."""
-        hint_text = f"Here's a hint (level {hint_level + 1}): Think about the fundamentals..."
-        
+        """Generate a hint for the saved conversation."""
+        conversation = conversation_store.get(conversation_id)
+        if not conversation or conversation["user_id"] != user_id:
+            return {
+                "hint": "I couldn't find that conversation. Please ask a new question first.",
+                "hint_level": 1,
+                "can_request_more_hints": False,
+            }
+
+        current_level = conversation.get("hint_level", hint_level)
+        next_level = current_level + 1
+        question = conversation["question"]
+
+        hint = self._generate_hint(question, next_level)
+        conversation["hint_level"] = next_level
+
         return {
-            "hint": hint_text,
-            "hint_level": hint_level + 1,
-            "can_request_more_hints": hint_level < 3
+            "hint": hint,
+            "hint_level": next_level,
+            "can_request_more_hints": next_level < 6,
         }
-    
+
     def reveal_answer(self, user_id: str, conversation_id: str) -> dict:
-        """Reveal full answer."""
+        """Reveal a fuller answer for the saved conversation."""
+        conversation = conversation_store.get(conversation_id)
+        if not conversation or conversation["user_id"] != user_id:
+            return {
+                "answer": "I couldn't find that conversation.",
+                "explanation": "Please ask a new question first.",
+            }
+
+        question = conversation["question"]
+        answer = self._generate_answer(question)
+
         return {
-            "answer": "This is the complete answer...",
-            "explanation": "Here's how to approach this problem..."
+            "answer": answer,
+            "explanation": "We can build toward the answer by unpacking the question step by step.",
         }
-    
+
     def _generate_response(self, question: str) -> str:
-        """Generate Socratic response (using simple logic for now)."""
-        if not question or len(question) < 3:
-            return "Could you please provide a more detailed question?"
-        
-        keywords = question.lower().split()
-        
-        if "what" in keywords:
-            return "Great question! Let me ask you: What do you already know about this topic?"
-        elif "how" in keywords:
-            return "Interesting! Before I explain, can you think of any similar problems you've solved?"
-        elif "why" in keywords:
-            return "That's a thoughtful question! Have you considered the underlying principles?"
-        else:
-            return "Tell me more about what you're trying to understand."
+        """Generate the main tutor response using Gemini or a safe fallback."""
+        prompt = (
+            "You are a Socratic tutor. Respond with 2-4 short sentences. "
+            "Do not give the full answer immediately. Ask guiding questions, "
+            "point at useful concepts, and keep the tone encouraging.\n\n"
+            f"Student question: {question}"
+        )
+        gemini_text = self._call_gemini(prompt)
+        if gemini_text:
+            return gemini_text
+
+        lowered = question.lower()
+        if "what" in lowered:
+            return "Good question. What do you already know about this topic, and what part feels unclear?"
+        if "how" in lowered:
+            return "Let’s slow it down. What similar problem have you solved before, and what changes here?"
+        if "why" in lowered:
+            return "That’s a strong question. What underlying principle might explain the result?"
+        return "Tell me a bit more about what you’re trying to understand, and we’ll work through it together."
+
+    def _generate_hint(self, question: str, hint_level: int) -> str:
+        """Generate a progressively stronger hint."""
+        prompt = (
+            "You are a tutoring assistant. Give one concise hint only. "
+            "Do not reveal the full solution. Make the hint more specific based on the level.\n\n"
+            f"Hint level: {hint_level}\n"
+            f"Student question: {question}"
+        )
+        gemini_text = self._call_gemini(prompt)
+        if gemini_text:
+            return gemini_text
+
+        fallback_hints = {
+            1: "Start by identifying the core concept or definition involved.",
+            2: "Break the problem into smaller parts and ask what each part needs.",
+            3: "Look for a pattern, constraint, or example that matches the idea.",
+            4: "Try working through one simple case first.",
+            5: "Compare this with a similar problem you already know how to solve.",
+            6: "You are very close; focus on the key step that connects the facts.",
+        }
+        return fallback_hints.get(hint_level, fallback_hints[6])
+
+    def _generate_answer(self, question: str) -> str:
+        """Generate a fuller answer for reveal mode."""
+        prompt = (
+            "You are a helpful tutor. Give the answer in a clear, concise way, "
+            "followed by a short explanation.\n\n"
+            f"Student question: {question}"
+        )
+        gemini_text = self._call_gemini(prompt)
+        if gemini_text:
+            return gemini_text
+
+        return "Here is the direct answer in plain language, followed by a short explanation of the steps."
+
+    def _call_gemini(self, prompt: str) -> str | None:
+        """Call the Gemini REST API if a key is available."""
+        if not self.settings.gemini_api_key:
+            return None
+
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self.settings.gemini_model}:generateContent?key={self.settings.gemini_api_key}"
+        )
+        payload = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": self.settings.gemini_temperature,
+                "maxOutputTokens": 512,
+            },
+        }
+
+        try:
+            response = requests.post(url, json=payload, timeout=self.settings.gemini_timeout)
+            response.raise_for_status()
+            data = response.json()
+            candidates = data.get("candidates") or []
+            if not candidates:
+                return None
+
+            parts = candidates[0].get("content", {}).get("parts", [])
+            texts = [part.get("text", "") for part in parts if part.get("text")]
+            text = "\n".join(texts).strip()
+            return text or None
+        except Exception:
+            return None

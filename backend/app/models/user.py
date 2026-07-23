@@ -75,24 +75,8 @@ class User(Base):
     last_login: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
     # Relationships
-    sessions: Mapped[list] = relationship(
-        "Session",
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
     refresh_tokens: Mapped[list] = relationship(
         "RefreshToken",
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
-    analytics: Mapped["UserAnalytics"] = relationship(
-        "UserAnalytics",
-        back_populates="user",
-        uselist=False,
-        cascade="all, delete-orphan",
-    )
-    misconceptions: Mapped[list] = relationship(
-        "Misconception",
         back_populates="user",
         cascade="all, delete-orphan",
     )

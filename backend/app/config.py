@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = Field(
-        default="mysql+pymysql://root:password@localhost:3306/thinkloop_ai",
+        default="sqlite:///./thinkloop_ai.db",
         env="DATABASE_URL",
     )
     database_echo: bool = Field(default=False, env="DATABASE_ECHO")
@@ -35,6 +35,10 @@ class Settings(BaseSettings):
         default="dev-secret-key-change-in-production",
         env="JWT_SECRET_KEY",
     )
+    gemini_api_key: Optional[str] = Field(default=None, env="GEMINI_API_KEY")
+    gemini_model: str = Field(default="gemini-1.5-flash", env="GEMINI_MODEL")
+    gemini_temperature: float = Field(default=0.7, env="GEMINI_TEMPERATURE")
+    gemini_timeout: int = Field(default=30, env="GEMINI_TIMEOUT")
     jwt_algorithm: str = Field(default="HS256", env="JWT_ALGORITHM")
     jwt_access_token_expire_minutes: int = Field(
         default=1440,  # 24 hours
@@ -142,8 +146,13 @@ class Settings(BaseSettings):
         """Pydantic settings configuration."""
 
         env_file = ".env"
-        env_file_encoding = "utf-8"
+        env_file_encoding = "utf-8-sig"
         case_sensitive = False
+
+    @property
+    def SECRET_KEY(self) -> str:
+        """Compatibility alias for legacy JWT code."""
+        return self.jwt_secret_key
 
 
 @lru_cache()
