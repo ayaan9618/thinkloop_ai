@@ -72,7 +72,8 @@ def init_db() -> None:
     
     Should be called once at application startup if tables don't exist.
     """
-    # Import Base after engine creation to avoid circular imports
+    # Import models so SQLAlchemy registers all tables before create_all.
+    from backend.app import models  # noqa: F401
     from backend.app.models import Base
     
     Base.metadata.create_all(bind=engine)

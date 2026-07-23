@@ -8,7 +8,7 @@ from backend.app.config import settings
 
 
 if __name__ == "__main__":
-    use_reload = settings.debug and os.name != "nt"
+    use_reload = settings.debug_enabled and os.name != "nt"
     uvicorn.run(
         "backend.app.main:app",
         host=settings.host,

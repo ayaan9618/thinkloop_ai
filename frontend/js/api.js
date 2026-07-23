@@ -41,8 +41,21 @@ async function apiRequest(method, endpoint, body = null) {
     const response = await fetch(url, options);
     
     if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || error.message || 'API Error');
+        const contentType = response.headers.get('content-type') || '';
+        let message = 'API Error';
+
+        if (contentType.includes('application/json')) {
+            try {
+                const error = await response.json();
+                message = error.detail || error.message || message;
+            } catch (jsonError) {
+                message = await response.text();
+            }
+        } else {
+            message = await response.text();
+        }
+
+        throw new Error(message || `API Error (${response.status})`);
     }
 
     return await response.json();

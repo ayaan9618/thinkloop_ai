@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # Environment
     environment: str = Field(default="development", env="ENVIRONMENT")
-    debug: bool = Field(default=True, env="DEBUG")
+    debug: str = Field(default="true", env="DEBUG")
 
     # Server
     host: str = Field(default="0.0.0.0", env="HOST")
@@ -153,6 +153,12 @@ class Settings(BaseSettings):
     def SECRET_KEY(self) -> str:
         """Compatibility alias for legacy JWT code."""
         return self.jwt_secret_key
+
+    @property
+    def debug_enabled(self) -> bool:
+        """Normalize different debug env values into a boolean."""
+        value = (self.debug or "").strip().lower()
+        return value not in {"0", "false", "no", "off", "release", "production"}
 
 
 @lru_cache()

@@ -90,14 +90,32 @@ class TutorService:
         if gemini_text:
             return gemini_text
 
+        topic = self._extract_topic(question)
         lowered = question.lower()
-        if "what" in lowered:
-            return "Good question. What do you already know about this topic, and what part feels unclear?"
+
+        if any(keyword in lowered for keyword in ["explain", "teach me", "help me learn", "what is"]):
+            return (
+                f"Sure — let’s unpack {topic} from the basics. "
+                f"I’ll keep it simple first, then we can go deeper. "
+                f"What part of {topic} feels most confusing right now?"
+            )
+
         if "how" in lowered:
-            return "Let’s slow it down. What similar problem have you solved before, and what changes here?"
+            return (
+                f"Let’s break {topic} into smaller steps. "
+                "What outcome are you trying to reach, and what do you already know about the parts involved?"
+            )
+
         if "why" in lowered:
-            return "That’s a strong question. What underlying principle might explain the result?"
-        return "Tell me a bit more about what you’re trying to understand, and we’ll work through it together."
+            return (
+                f"Good question about {topic}. "
+                "What underlying rule or principle do you think might be causing that result?"
+            )
+
+        return (
+            f"I’m here with you on {topic}. "
+            "Can you share a little more context so I can guide you step by step?"
+        )
 
     def _generate_hint(self, question: str, hint_level: int) -> str:
         """Generate a progressively stronger hint."""
@@ -165,3 +183,23 @@ class TutorService:
             return text or None
         except Exception:
             return None
+
+    def _extract_topic(self, question: str) -> str:
+        """Best-effort topic extraction for local fallback responses."""
+        lowered = question.lower().strip().rstrip("?")
+        prefixes = [
+            "explain ",
+            "teach me ",
+            "help me learn ",
+            "what is ",
+            "what are ",
+            "how do i ",
+            "how do you ",
+            "how to ",
+        ]
+
+        for prefix in prefixes:
+            if lowered.startswith(prefix):
+                return question[len(prefix):].strip(" .!?") or "this topic"
+
+        return question.strip(" .!?") or "this topic"

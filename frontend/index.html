@@ -3,144 +3,341 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>thinkloop AI - Intelligent Tutoring System</title>
+    <title>thinkloop AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .hidden { display: none; }
+        :root {
+            color-scheme: dark;
+        }
+
+        body {
+            background: radial-gradient(circle at top, #111827 0%, #09090b 55%, #050505 100%);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .glass {
+            background: rgba(17, 24, 39, 0.68);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chat-scroll {
+            scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
+            scrollbar-width: thin;
+        }
+
+        .chat-scroll::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .chat-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.45);
+            border-radius: 9999px;
+        }
+
+        .message-content p + p {
+            margin-top: 0.65rem;
+        }
+
+        .message-content ul {
+            list-style: disc;
+            padding-left: 1.25rem;
+            margin-top: 0.5rem;
+        }
+
+        .message-content code {
+            background: rgba(15, 23, 42, 0.9);
+            padding: 0.15rem 0.4rem;
+            border-radius: 0.4rem;
+            font-size: 0.92em;
+        }
+
+        .message-content pre {
+            background: #0f172a;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-x: auto;
+            margin-top: 0.75rem;
+        }
+
+        .message-content pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        .chat-shell {
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.25), rgba(2, 6, 23, 0.85));
+        }
     </style>
 </head>
-<body class="bg-gray-50">
-    <!-- Navigation -->
-    <nav class="bg-white shadow" id="navbar">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <h1 class="text-2xl font-bold text-blue-600">thinkloop AI</h1>
-                </div>
-                <div id="nav-user" class="hidden flex items-center space-x-4">
-                    <span id="username" class="text-gray-700"></span>
-                    <button onclick="logout()" class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
-                        Logout
+<body class="min-h-screen text-slate-100">
+    <div id="app-root">
+        <div id="auth-shell" class="min-h-screen flex items-center justify-center px-4 py-10">
+            <div class="grid w-full max-w-6xl gap-6 lg:grid-cols-2">
+                <section class="glass rounded-3xl p-8 lg:p-10 shadow-2xl shadow-black/30">
+                    <div class="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300">
+                        <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                        thinkloop AI • local chat mode
+                    </div>
+                    <h1 class="mt-8 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                        Learn with a real chat experience.
+                    </h1>
+                    <p class="mt-5 max-w-xl text-base leading-7 text-slate-300">
+                        Ask questions, get Socratic guidance, and keep the conversation flowing in a clean AI-style interface.
+                    </p>
+
+                    <div class="mt-10 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <p class="text-sm font-medium text-white">Socratic replies</p>
+                            <p class="mt-1 text-sm text-slate-400">Guided responses instead of blunt answers.</p>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <p class="text-sm font-medium text-white">Gemini ready</p>
+                            <p class="mt-1 text-sm text-slate-400">Plug in your key and get smarter answers.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="glass rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/30">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-2xl font-semibold text-white">Welcome back</h2>
+                            <p class="mt-1 text-sm text-slate-400">Sign in to continue your tutor chat.</p>
+                        </div>
+                        <span class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-300">
+                            thinkloop AI
+                        </span>
+                    </div>
+
+                    <div class="mt-8 grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-300">
+                        <div class="rounded-xl bg-white/5 p-4">
+                            <p class="font-medium text-white">Sample prompts</p>
+                            <ul class="mt-2 space-y-1 text-slate-400">
+                                <li>• How does Docker work?</li>
+                                <li>• What is recursion?</li>
+                                <li>• Help me learn Git</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <form id="login-form" class="mt-8 space-y-4">
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-300">Email</label>
+                            <input id="login-email" type="email" required
+                                class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/20"
+                                placeholder="you@example.com">
+                        </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-300">Password</label>
+                            <input id="login-password" type="password" required
+                                class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/20"
+                                placeholder="••••••••">
+                        </div>
+                        <button type="submit"
+                            class="w-full rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-4 py-3 font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:brightness-110">
+                            Login
+                        </button>
+                    </form>
+
+                    <button onclick="showRegister()"
+                        class="mt-4 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 font-medium text-slate-200 transition hover:bg-white/10">
+                        Create account
+                    </button>
+
+                    <div id="login-error" class="mt-4 hidden rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200"></div>
+                </section>
+            </div>
+        </div>
+
+        <div id="register-shell" class="hidden min-h-screen flex items-center justify-center px-4 py-10">
+            <div class="glass w-full max-w-2xl rounded-3xl p-6 shadow-2xl shadow-black/30 sm:p-8">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 class="text-3xl font-semibold text-white">Create your account</h2>
+                        <p class="mt-2 text-sm text-slate-400">Set up your tutor workspace in under a minute.</p>
+                    </div>
+                    <button onclick="showLogin()"
+                        class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10">
+                        Back
                     </button>
                 </div>
-            </div>
-        </div>
-    </nav>
 
-    <!-- Login Page -->
-    <div id="login-page" class="flex items-center justify-center min-h-screen">
-        <div class="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-            <h2 class="text-3xl font-bold text-gray-900 mb-6">Welcome Back</h2>
-            
-            <form id="login-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Email</label>
-                    <input id="login-email" type="email" required 
-                        class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="you@example.com">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Password</label>
-                    <input id="login-password" type="password" required 
-                        class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="••••••••">
-                </div>
-                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700">
-                    Login
-                </button>
-            </form>
-
-            <div class="mt-6 border-t pt-6">
-                <p class="text-gray-600 text-sm">Don't have an account?</p>
-                <button onclick="showRegister()" class="w-full mt-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50">
-                    Create Account
-                </button>
-            </div>
-
-            <div id="login-error" class="mt-4 hidden p-4 bg-red-100 text-red-700 rounded-lg"></div>
-        </div>
-    </div>
-
-    <!-- Register Page -->
-    <div id="register-page" class="hidden flex items-center justify-center min-h-screen">
-        <div class="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-            <h2 class="text-3xl font-bold text-gray-900 mb-6">Create Account</h2>
-            
-            <form id="register-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Email</label>
-                    <input id="register-email" type="email" required 
-                        class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="you@example.com">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Username</label>
-                    <input id="register-username" type="text" required 
-                        class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="your_username">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">First Name</label>
-                        <input id="register-first" type="text" required 
-                            class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <form id="register-form" class="mt-8 grid gap-4 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <label class="mb-2 block text-sm font-medium text-slate-300">Email</label>
+                        <input id="register-email" type="email" required
+                            class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/20"
+                            placeholder="you@example.com">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Last Name</label>
-                        <input id="register-last" type="text" required 
-                            class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <label class="mb-2 block text-sm font-medium text-slate-300">Username</label>
+                        <input id="register-username" type="text" required
+                            class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/20"
+                            placeholder="yourname">
                     </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Password</label>
-                    <input id="register-password" type="password" required 
-                        class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="••••••••">
-                </div>
-                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700">
-                    Register
-                </button>
-            </form>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-slate-300">Password</label>
+                        <input id="register-password" type="password" required
+                            class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/20"
+                            placeholder="••••••••">
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-slate-300">First name</label>
+                        <input id="register-first" type="text" required
+                            class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none transition focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/20">
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-sm font-medium text-slate-300">Last name</label>
+                        <input id="register-last" type="text" required
+                            class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none transition focus:border-sky-400/60 focus:ring-2 focus:ring-sky-400/20">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <button type="submit"
+                            class="w-full rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 px-4 py-3 font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:brightness-110">
+                            Register
+                        </button>
+                    </div>
+                </form>
 
-            <button onclick="showLogin()" class="w-full mt-4 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                Back to Login
-            </button>
-
-            <div id="register-error" class="mt-4 hidden p-4 bg-red-100 text-red-700 rounded-lg"></div>
-        </div>
-    </div>
-
-    <!-- Tutor Page -->
-    <div id="tutor-page" class="hidden">
-        <div class="max-w-2xl mx-auto p-6">
-            <h2 class="text-3xl font-bold text-gray-900 mb-6">Ask Your Question</h2>
-            
-            <!-- Chat Area -->
-            <div id="chat-area" class="bg-white rounded-lg shadow-lg p-6 mb-6 h-96 overflow-y-auto border border-gray-300">
-                <div class="space-y-4">
-                    <!-- Messages go here -->
-                </div>
+                <div id="register-error" class="mt-4 hidden rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200"></div>
             </div>
+        </div>
 
-            <!-- Input Area -->
-            <form id="question-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Question</label>
-                    <textarea id="question-input" required 
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="Ask your question about any topic..."
-                        rows="4"></textarea>
-                </div>
-                <div class="flex space-x-4">
-                    <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700">
-                        Ask
-                    </button>
-                    <button type="button" id="hint-btn" onclick="requestHint()" 
-                        class="px-6 bg-gray-600 text-white py-2 rounded-lg font-medium hover:bg-gray-700">
-                        Hint
-                    </button>
-                </div>
-            </form>
+        <div id="tutor-page" class="hidden h-screen overflow-hidden">
+            <div class="flex h-full flex-col lg:flex-row">
+                <aside class="hidden w-80 flex-col border-r border-white/10 bg-black/30 p-4 lg:flex">
+                    <div class="glass rounded-3xl p-4">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 font-bold text-white">
+                                t
+                            </div>
+                            <div>
+                                <p class="text-lg font-semibold text-white">thinkloop AI</p>
+                                <p class="text-xs text-slate-400">Socratic tutor workspace</p>
+                            </div>
+                        </div>
+                        <button onclick="newChat()" class="mt-4 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left font-medium text-slate-200 transition hover:bg-white/10">
+                            + New chat
+                        </button>
+                    </div>
+
+                    <div class="mt-4 flex-1 overflow-y-auto">
+                        <div class="glass rounded-3xl p-4">
+                            <p class="text-sm font-semibold text-white">Try asking</p>
+                            <div class="mt-3 space-y-2" id="sidebar-prompts"></div>
+                        </div>
+                    </div>
+
+                    <div class="glass mt-4 rounded-3xl p-4">
+                        <p class="text-sm text-slate-400">Signed in as</p>
+                        <p id="username" class="mt-1 text-base font-medium text-white"></p>
+                        <button onclick="logout()"
+                            class="mt-4 w-full rounded-2xl bg-rose-500 px-4 py-3 font-semibold text-white transition hover:bg-rose-400">
+                            Logout
+                        </button>
+                    </div>
+                </aside>
+
+                <main class="chat-shell flex min-h-0 flex-1 flex-col">
+                    <header class="border-b border-white/10 bg-black/25 px-4 py-4 sm:px-6 lg:px-8">
+                        <div class="flex items-center justify-between gap-4">
+                            <div>
+                                <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Tutor session</p>
+                                <h1 class="mt-1 text-2xl font-semibold text-white">Ask anything</h1>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
+                                    Gemini ready
+                                </span>
+                                <span id="nav-user" class="hidden rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-slate-200"></span>
+                                <button onclick="logout()"
+                                    class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/10">
+                                    Logout
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <section class="flex min-h-0 flex-1 flex-col">
+                        <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+                            <div id="chat-empty" class="flex flex-1 items-center justify-center px-6 py-14">
+                                <div class="max-w-2xl text-center">
+                                    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-indigo-500 text-2xl font-bold text-white shadow-lg shadow-sky-500/25">
+                                        ✦
+                                    </div>
+                                    <h2 class="mt-6 text-3xl font-semibold text-white sm:text-4xl">What are we learning today?</h2>
+                                    <p class="mt-4 text-base leading-7 text-slate-300">
+                                        Ask a question about coding, systems, or anything you want to understand better.
+                                        I’ll reply in a clean chat style and keep the guidance conversational.
+                                    </p>
+
+                                    <div class="mt-8 grid gap-3 sm:grid-cols-2">
+                                        <button class="quick-prompt rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:bg-white/10" data-prompt="Explain Docker like I am a beginner">
+                                            <p class="text-sm font-medium text-white">Explain Docker</p>
+                                            <p class="mt-1 text-sm text-slate-400">Start with the basics</p>
+                                        </button>
+                                        <button class="quick-prompt rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:bg-white/10" data-prompt="What is recursion and when do I use it?">
+                                            <p class="text-sm font-medium text-white">Recursion</p>
+                                            <p class="mt-1 text-sm text-slate-400">Concept + use cases</p>
+                                        </button>
+                                        <button class="quick-prompt rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:bg-white/10" data-prompt="Help me understand Git branches and merges">
+                                            <p class="text-sm font-medium text-white">Git branches</p>
+                                            <p class="mt-1 text-sm text-slate-400">Workflow clarity</p>
+                                        </button>
+                                        <button class="quick-prompt rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:bg-white/10" data-prompt="How do APIs and frontend talk to each other?">
+                                            <p class="text-sm font-medium text-white">APIs</p>
+                                            <p class="mt-1 text-sm text-slate-400">Request/response flow</p>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="chat-area" class="hidden min-h-0 flex-1 overflow-y-auto chat-scroll px-4 py-5 sm:px-6 lg:px-8">
+                                <div class="mx-auto flex w-full max-w-3xl flex-col gap-4">
+                                    <div id="chat-messages" class="flex w-full flex-col gap-4"></div>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-white/10 bg-[#060b13]/95 px-4 py-3 sm:px-6 lg:px-8">
+                                <div class="mx-auto max-w-3xl">
+                                    <form id="question-form" class="space-y-2">
+                                        <div class="relative rounded-[1.1rem] border border-white/10 bg-slate-950/85 p-2.5 shadow-lg shadow-black/20">
+                                            <textarea id="question-input" rows="1" required
+                                                class="w-full resize-none border-0 bg-transparent px-2 py-1.5 pr-24 text-[15px] leading-6 text-slate-100 outline-none placeholder:text-slate-500 focus:ring-0"
+                                                placeholder="Message thinkloop AI..."></textarea>
+                                            <div class="absolute bottom-2.5 right-2.5 flex items-center gap-2">
+                                                <button type="button" id="hint-btn" onclick="requestHint()"
+                                                    class="rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40">
+                                                    Hint
+                                                </button>
+                                                <button type="submit"
+                                                    class="rounded-full bg-sky-500 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-400">
+                                                    Send
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                                            <span>Press Enter to send • Shift+Enter for a new line</span>
+                                            <span id="status-pill" class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-slate-300">
+                                                Ready
+                                            </span>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+            </div>
         </div>
     </div>
 

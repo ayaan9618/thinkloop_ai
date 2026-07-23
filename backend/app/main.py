@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     # Startup
     print("Starting up thinkloop AI backend...")
     init_db()
-    print("✓ Database initialized")
+    print("Database initialized")
     yield
     # Shutdown
     print("Shutting down thinkloop AI backend...")
@@ -45,9 +45,9 @@ def create_app() -> FastAPI:
         title="thinkloop AI API",
         description="Intelligent Tutoring System using Socratic Method",
         version="1.0.0-alpha",
-        docs_url="/docs" if settings.debug else None,
-        redoc_url="/redoc" if settings.debug else None,
-        openapi_url="/openapi.json" if settings.debug else None,
+        docs_url="/docs" if settings.debug_enabled else None,
+        redoc_url="/redoc" if settings.debug_enabled else None,
+        openapi_url="/openapi.json" if settings.debug_enabled else None,
         lifespan=lifespan,
     )
 
